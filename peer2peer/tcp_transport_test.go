@@ -9,7 +9,7 @@ func TestTCPTransport (t *testing.T) {
 	trOps := TCPTransportOps{
 		ListnAddr: ":8080",
 		Handshaker: NoHandshake,
-		Decoder: GOBDecoder{},
+		Decoder: DefaultDecoder{},
 	}
 
 	transport := NewTCPTransport(trOps)
