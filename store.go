@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-const DefaultRootFolderName = "default"
+const DefaultRootFolderName = "root"
 
 func CASPathTransformFunc(key string) PathKey {
 	hash := sha1.Sum([]byte(key))
@@ -58,12 +58,13 @@ func (p PathKey) getFirstFolder() string {
 type StoreOpts struct {
 	// Root contains folder name of the root folder,
 	// containing all the files of the system.
-	Root 			string
+	Root               string
 	getPathTransformed getPathTransformed
 }
 
-func NewStoreOpts(f getPathTransformed) StoreOpts {
+func NewStoreOpts(f getPathTransformed, r string) StoreOpts {
 	return StoreOpts{
+		Root:               r,
 		getPathTransformed: f,
 	}
 }
@@ -99,17 +100,18 @@ func (s *Store) writeStream(key string, r io.Reader) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 
 	// Writing the file
-	n, err := io.Copy(f, r)
+	_, err = io.Copy(f, r)
 	if err != nil {
 		return err
 	}
 
-	log.Printf("Wrote %d bytes to %s", n, pathKey.FullPathName())
-
 	return nil
+}
+
+func (s *Store) Write(key string, r io.Reader) error {
+	return s.writeStream(key, r)
 }
 
 func (s *Store) readStream(key string) (io.ReadCloser, error) {
@@ -145,9 +147,12 @@ func (s *Store) Delete(key string) error {
 
 func (s *Store) Has(key string) bool {
 	pathKey := s.StOps.getPathTransformed(key)
-	pathWithFileName := pathKey.FullPathName()
-	fullPathWithRoot := s.StOps.Root + "/" + pathWithFileName
+	fullPathWithRoot := s.StOps.Root + "/" + pathKey.FullPathName()
 
 	_, err := os.Stat(fullPathWithRoot)
 	return err == fs.ErrNotExist
+}
+
+func (s *Store) Clear() error {
+	return os.RemoveAll(s.StOps.Root)
 }
