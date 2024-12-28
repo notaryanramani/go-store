@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"log"
+	"time"
 
 	"github.com/notaryanramani/go-store/peer2peer"
 )
@@ -13,24 +13,24 @@ func onPeer(p peer2peer.Peer) error {
 }
 
 func main() {
-	fmt.Println("executing main.go...")
-	tcp_opts := peer2peer.TCPTransportOps{
-		ListnAddr:  ":8080",
+	log.Println("Starting file server...")
+	trOps := peer2peer.TCPTransportOps{
+		ListnAddr:  ":3000",
 		Handshaker: peer2peer.NoHandshake,
 		Decoder:    peer2peer.DefaultDecoder{},
 		OnPeer:     onPeer,
 	}
-	transport := peer2peer.NewTCPTransport(tcp_opts)
+	transport := peer2peer.NewTCPTransport(trOps)
+
+	fileServerOpts := NewServerOpts(":3000", "3000_tmp", CASPathTransformFunc, transport)
+	fileServer := NewServer(fileServerOpts)
 
 	go func() {
-		for {
-			msg := <-transport.Consume()
-			fmt.Printf("Received message: %s \n", msg.Payload)
-		}
+		time.Sleep(2 * time.Second)
+		fileServer.Stop()
 	}()
 
-	if err := transport.ListenAndAccept(); err != nil {
-		log.Fatalf("Error listening and accepting connections: %v", err)
+	if err := fileServer.Start(); err != nil {
+		log.Fatal(err)
 	}
-	select {}
 }

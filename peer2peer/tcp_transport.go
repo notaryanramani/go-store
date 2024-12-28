@@ -4,13 +4,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net"
 )
 
 type TCPTransport struct {
 	Ops     TCPTransportOps
 	Listner net.Listener
-	msgch chan Message
+	msgch   chan Message
 }
 
 func NewTCPTransport(ops TCPTransportOps) *TCPTransport {
@@ -56,12 +57,17 @@ func (t *TCPTransport) ListenAndAccept() error {
 
 	t.Listner = listner
 	go t.accept()
+	log.Printf("Listening on %s\n", t.Ops.ListnAddr)
+
 	return nil
 }
 
 func (t *TCPTransport) accept() {
 	for {
 		conn, err := t.Listner.Accept()
+		if errors.Is(err, net.ErrClosed) {
+			return
+		}
 		if err != nil {
 			fmt.Println("Error accepting connection: \n", err)
 		}

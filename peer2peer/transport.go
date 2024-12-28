@@ -15,6 +15,7 @@ func (p *TCPPeer) Close() error {
 type Transport interface {
 	ListenAndAccept() error
 	Consume() <-chan Message
+	Close() error
 }
 
 // Consume only returns read only channel
@@ -22,4 +23,9 @@ type Transport interface {
 // in the network
 func (t *TCPTransport) Consume() <-chan Message {
 	return t.msgch
+}
+
+// Close closes the listener
+func (t *TCPTransport) Close() error {
+	return t.Listner.Close()
 }
