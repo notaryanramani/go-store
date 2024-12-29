@@ -1,11 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"log"
+	"time"
 
 	"github.com/notaryanramani/go-store/peer2peer"
 )
-
 
 func makeFileServer(l string, r string, n ...string) *FileServer {
 	trOps := peer2peer.TCPTransportOps{
@@ -34,5 +35,14 @@ func main() {
 		log.Fatal(fs1.Start())
 	}()
 
-	fs2.Start()
+	go func() {
+		fs2.Start()
+	}()
+
+	time.Sleep(5 * time.Second)
+
+	data := bytes.NewReader([]byte("Other Data!"))
+	fs2.StoreWrite("myprivatekey", data)
+
+	select {}
 }

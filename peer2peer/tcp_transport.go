@@ -24,8 +24,9 @@ func NewTCPTransport(ops TCPTransportOps) *TCPTransport {
 // TCPPeer represents remote node
 // over TCP connection
 type TCPPeer struct {
-	// Conn is connection of peers
-	Conn net.Conn
+	// The underlying connection of the peer. 
+	// TCP connection
+	net.Conn
 
 	// Outbound indicates if the peer is outbound or inbound
 	// If true, the peer is outbound (dial)
@@ -108,6 +109,11 @@ func (t *TCPTransport) Dial(addr string) error {
 // Close implements the Transport interface and closes the listener
 func (t *TCPTransport) Close() error {
 	return t.Listner.Close()
+}
+
+// ListenAddr returns the listening address of the transport
+func (t *TCPTransport) ListenAddr() string {
+	return t.Ops.ListnAddr
 }
 
 func (t *TCPTransport) accept() {
