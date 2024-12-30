@@ -85,32 +85,32 @@ func NewStore(opts StoreOpts) *Store {
 	}
 }
 
-func (s *Store) writeStream(key string, r io.Reader) error {
+func (s *Store) writeStream(key string, r io.Reader) (int64, error) {
 	pathKey := s.StOps.getPathTransformed(key)
 
 	// Creating the folders
 	folderPathWithRoot := s.StOps.Root + "/" + pathKey.PathName
 	if err := os.MkdirAll(folderPathWithRoot, os.ModePerm); err != nil {
-		return err
+		return 0, err
 	}
 
 	// Creating the file
 	fullPathWithRoot := s.StOps.Root + "/" + pathKey.FullPathName()
 	f, err := os.Create(fullPathWithRoot)
 	if err != nil {
-		return err
+		return 0,err
 	}
 
 	// Writing the file
-	_, err = io.Copy(f, r)
+	n, err := io.Copy(f, r)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	return nil
+	return n, nil
 }
 
-func (s *Store) Write(key string, r io.Reader) error {
+func (s *Store) Write(key string, r io.Reader) (int64, error) {
 	return s.writeStream(key, r)
 }
 

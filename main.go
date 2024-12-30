@@ -39,7 +39,7 @@ func main() {
 		fs2.Start()
 	}()
 
-	time.Sleep(5 * time.Second)
+	time.Sleep(1 * time.Second)
 
 	data := bytes.NewReader([]byte("Other Data!"))
 	fs2.StoreWrite("myprivatekey", data)

@@ -5,6 +5,7 @@ import "net"
 // Peer is representation of nodes in the network
 type Peer interface {
 	net.Conn
+	Send([]byte) error
 	Close() error
 }
 

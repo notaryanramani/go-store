@@ -21,7 +21,7 @@ func TestStore(t *testing.T) {
 		data := generateRandomData()
 		writeData := bytes.NewReader(data)
 
-		err := store.writeStream(key, writeData)
+		_, err := store.writeStream(key, writeData)
 		if err != nil {
 			t.Fatalf("Error writing stream: %v", err)
 		}

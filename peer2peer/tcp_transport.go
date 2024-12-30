@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"sync"
 )
 
 type TCPTransport struct {
@@ -24,7 +25,7 @@ func NewTCPTransport(ops TCPTransportOps) *TCPTransport {
 // TCPPeer represents remote node
 // over TCP connection
 type TCPPeer struct {
-	// The underlying connection of the peer. 
+	// The underlying connection of the peer.
 	// TCP connection
 	net.Conn
 
@@ -32,12 +33,15 @@ type TCPPeer struct {
 	// If true, the peer is outbound (dial)
 	// If false, the peer is inbound (accept)
 	Outbound bool
+
+	Wg *sync.WaitGroup
 }
 
 func NewTCPPeer(conn net.Conn, outbound bool) *TCPPeer {
 	return &TCPPeer{
 		Conn:     conn,
 		Outbound: outbound,
+		Wg:       &sync.WaitGroup{},
 	}
 }
 
@@ -161,6 +165,10 @@ func (t *TCPTransport) handleConnection(conn net.Conn, outbound bool) {
 			}
 		}
 		msg.From = conn.RemoteAddr()
+		peer.Wg.Add(1)
+		fmt.Println("waiting")
 		t.msgch <- *msg
+		peer.Wg.Wait()
+		fmt.Println("done")
 	}
 }

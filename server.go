@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/notaryanramani/go-store/peer2peer"
 )
@@ -79,11 +80,12 @@ func (fs *FileServer) Loop() {
 		case msg := <-fs.Opts.Transport.Consume():
 			var pMsg MessagePayload
 			if err := gob.NewDecoder(bytes.NewReader(msg.Payload)).Decode(&pMsg); err != nil {
-				log.Printf("Error decoding message: %v\n", err)
+				log.Printf("Boo: %v\n", err)
 			}
-			if err := fs.handleMessagePayload(&pMsg); err != nil {
+			if err := fs.handleMessagePayload(msg.From.String(), &pMsg); err != nil {
 				log.Printf("Error handling message: %v\n", err)
 			}
+
 		case <-fs.quitch:
 			return
 		}
@@ -123,34 +125,54 @@ func (fs *FileServer) Start() error {
 
 // StoreWrite writes the content of the reader to the store
 func (fs *FileServer) StoreWrite(key string, r io.Reader) error {
-	buf := new(bytes.Buffer)
-	tee := io.TeeReader(r, buf)
+	fBuf := new(bytes.Buffer)
+	tee := io.TeeReader(r, fBuf)
 
-	if err := fs.Store.Write(key, tee); err != nil {
+	n, err := fs.Store.Write(key, tee)
+	if err != nil {
 		return err
 	}
 
-	p := &Payload{
-		Key:  key,
-		Data: buf.Bytes(),
-	}
-
 	msg := &MessagePayload{
-		From:    fs.Opts.Transport.ListenAddr(),
-		Payload: p,
+		From: fs.Opts.Transport.ListenAddr(),
+		Payload: &MessageStoreFile{
+			Key:  key,
+			Size: n,
+		},
 	}
 
-	return fs.broadcast(msg)
-}
+	msgBuf := new(bytes.Buffer)
+	if err := gob.NewEncoder(msgBuf).Encode(msg); err != nil {
+		return err
+	}
 
-type Payload struct {
-	Key  string
-	Data []byte
+	for _, peer := range fs.peers {
+		err := peer.Send(msgBuf.Bytes())
+		if err != nil {
+			return err
+		}
+	}
+
+	time.Sleep(2 * time.Second)
+
+	for _, peer := range fs.peers {
+		_, err := io.Copy(peer, fBuf)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 type MessagePayload struct {
 	From    string
 	Payload any
+}
+
+type MessageStoreFile struct {
+	Key  string
+	Size int64
 }
 
 func (fs *FileServer) broadcast(mp *MessagePayload) error {
@@ -164,10 +186,34 @@ func (fs *FileServer) broadcast(mp *MessagePayload) error {
 	return gob.NewEncoder(mw).Encode(mp)
 }
 
-func (fs *FileServer) handleMessagePayload(m *MessagePayload) error {
+func init() {
+	gob.Register(&MessagePayload{})
+	gob.Register(&MessageStoreFile{})
+}
+
+func (fs *FileServer) handleMessagePayload(from string, m *MessagePayload) error {
 	switch v := m.Payload.(type) {
-	case *Payload:
+	case *MessageStoreFile:
 		fmt.Printf("Received payload: %+v\n", v)
+		return fs.handleMesssageStoreFile(from, v)
 	}
+	return nil
+}
+
+func (fs *FileServer) handleMesssageStoreFile(from string, m *MessageStoreFile) error {
+	peer, ok := fs.peers[from]
+	if !ok {
+		return fmt.Errorf("peer [%s] not found", from)
+	}
+
+	n, err := fs.Store.Write(m.Key, io.LimitReader(peer, m.Size)) 
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Received %d bytes from %s\n", n, from)
+
+	peer.(*peer2peer.TCPPeer).Wg.Done()
+
 	return nil
 }
